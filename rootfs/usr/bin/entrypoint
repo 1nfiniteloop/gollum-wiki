@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Initialize git-repo once
+[ -e .git ] || git init
+
+# set global git-config
+[ -n "${GITCONFIG_USER_NAME}" ] && git config --global --add user.name "${GITCONFIG_USER_NAME}"
+[ -n "${GITCONFIG_USER_EMAIL}" ] && git config --global --add user.email "${GITCONFIG_USER_EMAIL}"
+
+# Start gollum wiki with extra arguments
+exec gollum --port 8080 $@ /wiki

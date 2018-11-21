@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# TODO:
+# - fix option to stop wiki? Create lock-files in "/var/lock/gollum-wiki"
+
+function err() {
+    local ERR_MSG=$1
+    >&2 echo -e "ERROR: ${ERR_MSG}"
+}
+
+function check_docker_installed() {
+    which docker > /dev/null || \
+        (err "docker not installed." && false)
+    return
+}
+
+function docker_args_env_file() {
+    local ENV_FILE=$1
+    [ -e ${ENV_FILE} ] && \
+        echo "--env-file=${ENV_FILE}" && \
+        true
+    return 
+}
+
+function docker_args_env() {
+    local STATUS=0
+    local ARGS=()
+    [ -n "${GITCONFIG_USER_NAME}" ] && \
+        ARGS+=("--env GITCONFIG_USER_NAME") || \
+        { err "GITCONFIG_USER_NAME undefined, define in \"${DOCKER_ENV_FILE}\" or manually e.g: \n\n\texport GITCONFIG_USER_NAME=\"Your name\"\n" && \
+        STATUS=1; }
+    [ -n "${GITCONFIG_USER_EMAIL}" ] && \
+        ARGS+=("--env GITCONFIG_USER_EMAIL") || \
+        { err "GITCONFIG_USER_EMAIL undefined, define in \"${DOCKER_ENV_FILE}\" or manually e.g: \n\n\texport GITCONFIG_USER_EMAIL=\"your.email@example.com\"\n" && \
+        STATUS=1; }
+    echo "${ARGS[@]}"
+    return ${STATUS}
+}
+
+function start_gollum_with_docker() {
+    local WIKI_NAME=$1
+    local WIKI_PATH=$2
+    local WIKI_PORT=$3
+    local WIKI_DOCKER_IMG=$4
+    declare -a WIKI_DOCKER_ARGS=("${!5}")
+    declare -a WIKI_GOLLUM_ARGS=("${!6}")
+    eval "docker run --rm  --detach \
+        --name=${WIKI_NAME} \
+        --volume=${WIKI_PATH}:/wiki \
+        --publish=${WIKI_PORT}:8080 \
+        ${WIKI_DOCKER_ARGS[@]} \
+        ${WIKI_DOCKER_IMG} ${WIKI_GOLLUM_ARGS[@]} > /dev/null"
+    return
+}
+
+function find_free_port() {
+    local PORT_MIN=$1
+    local PORT_MAX=$2
+    local PORT=${PORT_MIN}
+    while (ss -ltn | grep -q $PORT) && ((PORT < PORT_MAX)); do
+        ((PORT++))
+    done
+    echo ${PORT}
+}
+
+function open_wiki_in_browser() {
+    local WIKI_NAME=$1
+    local WIKI_ADDR=$2
+    sleep 1 && \
+        xdg-open ${WIKI_ADDR} > /dev/null && \
+        echo -e "\n\tStated \"${WIKI_NAME}\" @ ${WIKI_ADDR}"
+}
+
+function check_positional_args() {
+    local WIKI_PATH=$1
+    [ -n "${WIKI_PATH}" ] && [ -e ${WIKI_PATH} ] || false
+    return
+}
+
+function print_usage() {
+    echo -e "\n\tUsage: `basename $0` [--docker-args <ARGS>] [--gollum-args <ARGS>] <PATH-TO-WIKI>\n"
+}
+
+# Default values
+DOCKER_EXTRA_ARGS=()
+GOLLUM_EXTRA_ARGS=()
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        --docker-args)
+        DOCKER_EXTRA_ARGS+=("$2")
+        shift
+        shift
+        ;;
+        --gollum-args)
+        GOLLUM_EXTRA_ARGS+=("$2")
+        shift
+        shift
+        ;;
+        *)    # unknown option
+        POSITIONAL+=("$1") # save it in an array for later
+        shift
+        ;;
+    esac
+done
+
+set -- "${POSITIONAL[@]}" # restore positional parameters accordingly to $1, $2..
+
+check_positional_args $1 || \
+    { print_usage && exit; }
+    
+WIKI_PATH=`readlink -m $1`
+WIKI_NAME=`basename ${WIKI_PATH}`
+WIKI_HOSTNAME="localhost"
+WIKI_PROTOCOL="http://"
+WIKI_PORT_MIN=4567
+WIKI_PORT_MAX=4600
+WIKI_PORT=$(find_free_port ${WIKI_PORT_MIN} ${WIKI_PORT_MAX})
+WIKI_ADDR="${WIKI_PROTOCOL}${WIKI_HOSTNAME}:${WIKI_PORT}"
+[ -z "${DOCKER_IMAGE}" ] && \
+    DOCKER_IMAGE="local-registry/gollum-wiki:latest"
+[ -z "${DOCKER_ENV_FILE}" ] && \
+    DOCKER_ENV_FILE=~/.gollum-wiki.env
+
+
+check_docker_installed && \
+    DOCKER_ARGS+=("${DOCKER_EXTRA_ARGS} $(docker_args_env_file ${DOCKER_ENV_FILE} || docker_args_env)") && \
+    start_gollum_with_docker ${WIKI_NAME} ${WIKI_PATH} ${WIKI_PORT} ${DOCKER_IMAGE} DOCKER_ARGS[@] GOLLUM_EXTRA_ARGS[@] && \
+    open_wiki_in_browser ${WIKI_NAME} ${WIKI_ADDR} && \
+    echo -e "\tStop with \"docker stop ${WIKI_NAME}\"\n"
+
+
