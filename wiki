@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# TODO:
-# - fix option to stop wiki? Create lock-files in "/var/lock/gollum-wiki"
+# Configuration
+DOCKER_IMAGE="1nfiniteloop/gollum-wiki:latest"
+DOCKER_ENV_FILE=~/.gollum-wiki.env
+
 
 function err() {
     local ERR_MSG=$1
@@ -63,12 +65,17 @@ function find_free_port() {
     echo ${PORT}
 }
 
-function open_wiki_in_browser() {
+function print_success() {
     local WIKI_NAME=$1
     local WIKI_ADDR=$2
+    echo -e "\n\tStarted \"${WIKI_NAME}\" @ ${WIKI_ADDR}\n" \
+            "\tStop with \"docker stop ${WIKI_NAME}\"\n"
+}
+
+function open_wiki_in_browser() {
+    local WIKI_ADDR=$1
     sleep 1 && \
-        xdg-open ${WIKI_ADDR} > /dev/null && \
-        echo -e "\n\tStated \"${WIKI_NAME}\" @ ${WIKI_ADDR}"
+        xdg-open ${WIKI_ADDR} &> /dev/null
 }
 
 function check_positional_args() {
@@ -119,16 +126,11 @@ WIKI_PORT_MIN=4567
 WIKI_PORT_MAX=4600
 WIKI_PORT=$(find_free_port ${WIKI_PORT_MIN} ${WIKI_PORT_MAX})
 WIKI_ADDR="${WIKI_PROTOCOL}${WIKI_HOSTNAME}:${WIKI_PORT}"
-[ -z "${DOCKER_IMAGE}" ] && \
-    DOCKER_IMAGE="local-registry/gollum-wiki:latest"
-[ -z "${DOCKER_ENV_FILE}" ] && \
-    DOCKER_ENV_FILE=~/.gollum-wiki.env
 
 
 check_docker_installed && \
     DOCKER_ARGS+=("${DOCKER_EXTRA_ARGS} $(docker_args_env_file ${DOCKER_ENV_FILE} || docker_args_env)") && \
     start_gollum_with_docker ${WIKI_NAME} ${WIKI_PATH} ${WIKI_PORT} ${DOCKER_IMAGE} DOCKER_ARGS[@] GOLLUM_EXTRA_ARGS[@] && \
-    open_wiki_in_browser ${WIKI_NAME} ${WIKI_ADDR} && \
-    echo -e "\tStop with \"docker stop ${WIKI_NAME}\"\n"
-
+    print_success ${WIKI_NAME} ${WIKI_ADDR} && \
+    open_wiki_in_browser ${WIKI_ADDR}
 
