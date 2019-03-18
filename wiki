@@ -48,7 +48,7 @@ function start_gollum_with_docker() {
     declare -a wiki_gollum_args=("${!6}")
     eval "docker run --rm  --detach \
         --name=${wiki_name} \
-        --volume=${wiki_path}:/wiki \
+        --volume='${wiki_path}':/wiki \
         --publish=${wiki_port}:8080 \
         ${wiki_docker_args[@]} \
         ${wiki_docker_image} ${wiki_gollum_args[@]} > /dev/null"
@@ -119,7 +119,7 @@ check_positional_args $1 || \
     { print_usage && exit; }
     
 readonly WIKI_PATH=$(readlink -m $1)
-readonly WIKI_NAME=$(basename ${WIKI_PATH})
+readonly WIKI_NAME=$(basename "${WIKI_PATH}")
 readonly WIKI_HOSTNAME="localhost"
 readonly WIKI_PROTOCOL="http://"
 readonly WIKI_PORT_MIN=4567
@@ -130,7 +130,7 @@ readonly WIKI_ADDR="${WIKI_PROTOCOL}${WIKI_HOSTNAME}:${WIKI_PORT}"
 
 check_docker_installed && \
     DOCKER_ARGS+=("${DOCKER_EXTRA_ARGS} $(docker_args_env_file ${DOCKER_ENV_FILE} || docker_args_env)") && \
-    start_gollum_with_docker ${WIKI_NAME} ${WIKI_PATH} ${WIKI_PORT} ${DOCKER_IMAGE} DOCKER_ARGS[@] GOLLUM_EXTRA_ARGS[@] && \
+    start_gollum_with_docker ${WIKI_NAME} "${WIKI_PATH}" ${WIKI_PORT} ${DOCKER_IMAGE} DOCKER_ARGS[@] GOLLUM_EXTRA_ARGS[@] && \
     print_success ${WIKI_NAME} ${WIKI_ADDR} && \
     open_wiki_in_browser ${WIKI_ADDR}
 
