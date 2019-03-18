@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Configuration
-DOCKER_IMAGE="1nfiniteloop/gollum-wiki:latest"
-DOCKER_ENV_FILE=~/.gollum-wiki.env
+readonly DOCKER_IMAGE="1nfiniteloop/gollum-wiki:latest"
+readonly DOCKER_ENV_FILE=~/.gollum-wiki.env
 
 
 function err() {
-    local ERR_MSG=$1
-    >&2 echo -e "ERROR: ${ERR_MSG}"
+    local error_msg=$1
+    >&2 echo -e "ERROR: ${error_msg}"
 }
 
 function check_docker_installed() {
@@ -17,70 +17,70 @@ function check_docker_installed() {
 }
 
 function docker_args_env_file() {
-    local ENV_FILE=$1
-    [ -e ${ENV_FILE} ] && \
-        echo "--env-file=${ENV_FILE}" && \
+    local env_file=$1
+    [ -e ${env_file} ] && \
+        echo "--env-file=${env_file}" && \
         true
     return 
 }
 
 function docker_args_env() {
-    local STATUS=0
-    local ARGS=()
+    local status=0
+    local args=()
     [ -n "${GITCONFIG_USER_NAME}" ] && \
-        ARGS+=("--env GITCONFIG_USER_NAME") || \
+        args+=("--env GITCONFIG_USER_NAME") || \
         { err "GITCONFIG_USER_NAME undefined, define in \"${DOCKER_ENV_FILE}\" or manually e.g: \n\n\texport GITCONFIG_USER_NAME=\"Your name\"\n" && \
-        STATUS=1; }
+        status=1; }
     [ -n "${GITCONFIG_USER_EMAIL}" ] && \
-        ARGS+=("--env GITCONFIG_USER_EMAIL") || \
+        args+=("--env GITCONFIG_USER_EMAIL") || \
         { err "GITCONFIG_USER_EMAIL undefined, define in \"${DOCKER_ENV_FILE}\" or manually e.g: \n\n\texport GITCONFIG_USER_EMAIL=\"your.email@example.com\"\n" && \
-        STATUS=1; }
-    echo "${ARGS[@]}"
-    return ${STATUS}
+        status=1; }
+    echo "${args[@]}"
+    return ${status}
 }
 
 function start_gollum_with_docker() {
-    local WIKI_NAME=$1
-    local WIKI_PATH=$2
-    local WIKI_PORT=$3
-    local WIKI_DOCKER_IMG=$4
-    declare -a WIKI_DOCKER_ARGS=("${!5}")
-    declare -a WIKI_GOLLUM_ARGS=("${!6}")
+    local wiki_name=$1
+    local wiki_path=$2
+    local wiki_port=$3
+    local wiki_docker_image=$4
+    declare -a wiki_docker_args=("${!5}")
+    declare -a wiki_gollum_args=("${!6}")
     eval "docker run --rm  --detach \
-        --name=${WIKI_NAME} \
-        --volume=${WIKI_PATH}:/wiki \
-        --publish=${WIKI_PORT}:8080 \
-        ${WIKI_DOCKER_ARGS[@]} \
-        ${WIKI_DOCKER_IMG} ${WIKI_GOLLUM_ARGS[@]} > /dev/null"
+        --name=${wiki_name} \
+        --volume=${wiki_path}:/wiki \
+        --publish=${wiki_port}:8080 \
+        ${wiki_docker_args[@]} \
+        ${wiki_docker_image} ${wiki_gollum_args[@]} > /dev/null"
     return
 }
 
 function find_free_port() {
-    local PORT_MIN=$1
-    local PORT_MAX=$2
-    local PORT=${PORT_MIN}
-    while (ss -ltn | grep -q $PORT) && ((PORT < PORT_MAX)); do
-        ((PORT++))
+    local port_min=$1
+    local port_max=$2
+    local port=${port_min}
+    while (ss -ltn | grep -q ${port}) && ((port < port_max)); do
+        ((port++))
     done
-    echo ${PORT}
+    echo ${port}
 }
 
 function print_success() {
-    local WIKI_NAME=$1
-    local WIKI_ADDR=$2
-    echo -e "\n\tStarted \"${WIKI_NAME}\" @ ${WIKI_ADDR}\n" \
-            "\tStop with \"docker stop ${WIKI_NAME}\"\n"
+    local wiki_name=$1
+    local wiki_addr=$2
+    echo -e "\n\tStarted \"${wiki_name}\" @ ${wiki_addr}\n" \
+            "\tStop with \"docker stop ${wiki_name}\"\n"
 }
 
 function open_wiki_in_browser() {
-    local WIKI_ADDR=$1
+    local wiki_addr=$1
     sleep 1 && \
-        xdg-open ${WIKI_ADDR} &> /dev/null
+        xdg-open ${wiki_addr} &> /dev/null
 }
 
 function check_positional_args() {
-    local WIKI_PATH=$1
-    [ -n "${WIKI_PATH}" ] && [ -e ${WIKI_PATH} ] || false
+    local wiki_path=$1
+    [ -n "${wiki_path}" ] && [ -e ${wiki_path} ] || false
     return
 }
 
@@ -118,14 +118,14 @@ set -- "${POSITIONAL[@]}" # restore positional parameters accordingly to $1, $2.
 check_positional_args $1 || \
     { print_usage && exit; }
     
-WIKI_PATH=`readlink -m $1`
-WIKI_NAME=`basename ${WIKI_PATH}`
-WIKI_HOSTNAME="localhost"
-WIKI_PROTOCOL="http://"
-WIKI_PORT_MIN=4567
-WIKI_PORT_MAX=4600
-WIKI_PORT=$(find_free_port ${WIKI_PORT_MIN} ${WIKI_PORT_MAX})
-WIKI_ADDR="${WIKI_PROTOCOL}${WIKI_HOSTNAME}:${WIKI_PORT}"
+readonly WIKI_PATH=$(readlink -m $1)
+readonly WIKI_NAME=$(basename ${WIKI_PATH})
+readonly WIKI_HOSTNAME="localhost"
+readonly WIKI_PROTOCOL="http://"
+readonly WIKI_PORT_MIN=4567
+readonly WIKI_PORT_MAX=4600
+readonly WIKI_PORT=$(find_free_port ${WIKI_PORT_MIN} ${WIKI_PORT_MAX})
+readonly WIKI_ADDR="${WIKI_PROTOCOL}${WIKI_HOSTNAME}:${WIKI_PORT}"
 
 
 check_docker_installed && \
