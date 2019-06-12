@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Initialize once
+if [[ ! -e .git ]]; then
+    git init
+fi
+
+if [[ ! -e ${HOME}/.gitconfig ]]; then
+    git config --global --add user.name "${GITCONFIG_USER_NAME}"
+    git config --global --add user.email "${GITCONFIG_USER_EMAIL}"
+fi
+
+exec gollum --port 8080 $@ /wiki

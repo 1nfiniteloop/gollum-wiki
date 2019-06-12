@@ -10,12 +10,6 @@ function err() {
     >&2 echo -e "ERROR: ${error_msg}"
 }
 
-function check_docker_installed() {
-    which docker > /dev/null || \
-        (err "docker not installed." && false)
-    return
-}
-
 function docker_args_env_file() {
     local env_file=$1
     [ -e ${env_file} ] && \
@@ -46,12 +40,14 @@ function start_gollum_with_docker() {
     local wiki_docker_image=$4
     declare -a wiki_docker_args=("${!5}")
     declare -a wiki_gollum_args=("${!6}")
-    eval "docker run --rm  --detach \
+    eval "docker run \
+        --rm \
+        --detach \
+        --user=$(id -u):$(id -g) \
         --name=${wiki_name} \
         --volume='${wiki_path}':/wiki \
         --publish=${wiki_port}:8080 \
-        ${wiki_docker_args[@]} \
-        ${wiki_docker_image} ${wiki_gollum_args[@]} > /dev/null"
+        ${wiki_docker_args[@]} ${wiki_docker_image} ${wiki_gollum_args[@]} > /dev/null"
     return
 }
 
@@ -78,16 +74,6 @@ function open_wiki_in_browser() {
         xdg-open ${wiki_addr} &> /dev/null
 }
 
-function check_positional_args() {
-    local wiki_path=$1
-    [ -n "${wiki_path}" ] && [ -e ${wiki_path} ] || false
-    return
-}
-
-function print_usage() {
-    echo -e "\n\tUsage: `basename $0` [--docker-args <ARGS>] [--gollum-args <ARGS>] <PATH-TO-WIKI>\n"
-}
-
 # Default values
 DOCKER_EXTRA_ARGS=()
 GOLLUM_EXTRA_ARGS=()
@@ -107,17 +93,15 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
         *)    # unknown option
-        POSITIONAL+=("$1") # save it in an array for later
+        POSITIONAL+=("$1")
         shift
         ;;
     esac
 done
 
-set -- "${POSITIONAL[@]}" # restore positional parameters accordingly to $1, $2..
+set -- "${POSITIONAL[@]}"
 
-check_positional_args $1 || \
-    { print_usage && exit; }
-    
+
 readonly WIKI_PATH=$(readlink -m $1)
 readonly WIKI_NAME=$(basename "${WIKI_PATH}")
 readonly WIKI_HOSTNAME="localhost"
@@ -128,9 +112,24 @@ readonly WIKI_PORT=$(find_free_port ${WIKI_PORT_MIN} ${WIKI_PORT_MAX})
 readonly WIKI_ADDR="${WIKI_PROTOCOL}${WIKI_HOSTNAME}:${WIKI_PORT}"
 
 
-check_docker_installed && \
-    DOCKER_ARGS+=("${DOCKER_EXTRA_ARGS} $(docker_args_env_file ${DOCKER_ENV_FILE} || docker_args_env)") && \
-    start_gollum_with_docker ${WIKI_NAME} "${WIKI_PATH}" ${WIKI_PORT} ${DOCKER_IMAGE} DOCKER_ARGS[@] GOLLUM_EXTRA_ARGS[@] && \
-    print_success ${WIKI_NAME} ${WIKI_ADDR} && \
-    open_wiki_in_browser ${WIKI_ADDR}
-
+if [[ ! $(which docker) ]]; then
+    err "Docker is not installed."
+    exit 1
+elif [[ $# -ne 1 ]]; then
+    echo -e "\n\tUsage: $(basename $0) [--docker-args <ARGS>] [--gollum-args <ARGS>] <PATH-TO-WIKI>\n"
+    exit 1
+elif [[ ! -e "${1}" ]]; then
+    err "Wiki path ${1} does not exist!"
+    exit 1
+else
+    DOCKER_ARGS+=("${DOCKER_EXTRA_ARGS} $(docker_args_env_file ${DOCKER_ENV_FILE} || docker_args_env)")
+    start_gollum_with_docker \
+        ${WIKI_NAME} \
+        "${WIKI_PATH}" \
+        ${WIKI_PORT} \
+        ${DOCKER_IMAGE} \
+        DOCKER_ARGS[@] \
+        GOLLUM_EXTRA_ARGS[@] \
+    && print_success ${WIKI_NAME} ${WIKI_ADDR} \
+    && open_wiki_in_browser ${WIKI_ADDR}
+fi
