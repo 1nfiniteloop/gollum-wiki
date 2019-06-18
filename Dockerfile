@@ -25,8 +25,8 @@ RUN adduser -D wiki \
     && chown wiki:wiki ${HOME}/.gitconfig
 
 EXPOSE 8080
-VOLUME /wiki
-WORKDIR /wiki
+VOLUME /mnt/wiki
+WORKDIR /mnt/wiki
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["--live-preview"]

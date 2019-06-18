@@ -13,4 +13,4 @@ if [[ -n "${GITCONFIG_USER_EMAIL}" ]]; then
     git config --global --add user.email "${GITCONFIG_USER_EMAIL}"
 fi
 
-exec gollum --port 8080 $@ /wiki
+exec gollum --port 8080 $@ /mnt/wiki
