@@ -5,8 +5,11 @@ if [[ ! -e .git ]]; then
     git init
 fi
 
-if [[ ! -e ${HOME}/.gitconfig ]]; then
+if [[ -n "${GITCONFIG_USER_NAME}" ]]; then
     git config --global --add user.name "${GITCONFIG_USER_NAME}"
+fi
+
+if [[ -n "${GITCONFIG_USER_EMAIL}" ]]; then
     git config --global --add user.email "${GITCONFIG_USER_EMAIL}"
 fi
 

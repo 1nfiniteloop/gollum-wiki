@@ -18,8 +18,11 @@ RUN apk add \
 
 COPY overlay /
 
-RUN adduser -D wiki
 ENV HOME /home/wiki
+RUN adduser -D wiki \
+    && touch ${HOME}/.gitconfig \
+    && chmod a+rw ${HOME}/.gitconfig \
+    && chown wiki:wiki ${HOME}/.gitconfig
 
 EXPOSE 8080
 VOLUME /wiki
