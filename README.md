@@ -8,7 +8,7 @@ This is a minimalistic Docker-image for [gollum wiki](https://github.com/gollum/
 
 # Volumes
 
-* /wiki
+* /mnt/wiki
 
 # Ports
 

@@ -45,7 +45,7 @@ function start_gollum_with_docker() {
         --detach \
         --user=$(id -u):$(id -g) \
         --name=${wiki_name} \
-        --volume='${wiki_path}':/wiki \
+        --volume='${wiki_path}':/mnt/wiki \
         --publish=${wiki_port}:8080 \
         ${wiki_docker_args[@]} ${wiki_docker_image} ${wiki_gollum_args[@]} > /dev/null"
     return
